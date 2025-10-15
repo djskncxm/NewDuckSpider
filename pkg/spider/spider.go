@@ -4,9 +4,9 @@ type SpiderIns interface {
 	Name() string
 }
 type Spider struct {
-	name string
+	SpiderName string
 }
 
 func (s Spider) Name() string {
-	return s.name
+	return s.SpiderName
 }
