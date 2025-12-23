@@ -6,10 +6,10 @@ type Response struct {
 	Headers  map[string]string
 	Body     []byte
 	Request  Request
-	ProTocol string
+	Protocol string
 }
 
-func New(URL string,
+func NewResponse(URL string,
 	Status int,
 	Headers map[string]string,
 	Body []byte,
@@ -22,6 +22,6 @@ func New(URL string,
 		Headers:  Headers,
 		Body:     Body,
 		Request:  Request,
-		ProTocol: ProTocol,
+		Protocol: ProTocol,
 	}
 }

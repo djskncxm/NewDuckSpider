@@ -1,12 +1,22 @@
 package httpc
 
+import "github.com/djskncxm/NewDuckSpider/pkg/item"
+
+type Callback func(*Response) []*Request
+
+type ParseResult struct {
+	Requests []*Request
+	Items    []item.Item
+}
+type ParseFunc func(*Response) *ParseResult
+
 type Request struct {
 	URL      string
 	Method   string
 	Headers  map[string]string
 	Body     []byte
 	Meta     map[string]any
-	Callback func(*Response)
+	Callback ParseFunc
 }
 
 func New(url string) *Request {
@@ -37,7 +47,12 @@ func (r *Request) WithBody(body []byte) *Request {
 	return r
 }
 
-func (r *Request) WithCallback(cb func(*Response)) *Request {
+//	func (r *Request) WithCallback(cb func(*Response)) *Request {
+//		r.Callback = cb
+//		return r
+//	}
+
+func (r *Request) WithCallback(cb ParseFunc) *Request {
 	r.Callback = cb
 	return r
 }

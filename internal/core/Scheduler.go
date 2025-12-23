@@ -1,27 +1,46 @@
 package core
 
-import "github.com/djskncxm/NewDuckSpider/pkg/httpc"
+import (
+	"github.com/djskncxm/NewDuckSpider/pkg/httpc"
+	"github.com/emirpasic/gods/queues/linkedlistqueue"
+	"sync"
+)
 
 type Scheduler struct {
-	queue chan *httpc.Request
+	RequestQueue *linkedlistqueue.Queue
+	mu           sync.Mutex
 }
 
-func NewScheduler(cap int) *Scheduler {
+func NewScheduler() *Scheduler {
 	return &Scheduler{
-		queue: make(chan *httpc.Request, cap),
+		RequestQueue: linkedlistqueue.New(),
 	}
 }
 
-// 入队
-func (s *Scheduler) EnRequest(req *httpc.Request) {
-	s.queue <- req
-}
+func (scheduler *Scheduler) NextRequest() (request *httpc.Request) {
+	if scheduler.Empty() {
+		return nil
+	}
 
-// 阻塞取队列
-func (s *Scheduler) NextRequest() *httpc.Request {
-	req, ok := <-s.queue
+	value, ok := scheduler.RequestQueue.Dequeue()
+
+	if !ok {
+		return nil
+	}
+
+	req, ok := value.(*httpc.Request)
 	if !ok {
 		return nil
 	}
 	return req
+}
+
+func (scheduler *Scheduler) EnqueueRequest(request *httpc.Request) {
+	scheduler.mu.Lock()
+	defer scheduler.mu.Unlock()
+	scheduler.RequestQueue.Enqueue(request)
+}
+
+func (scheduler *Scheduler) Empty() bool {
+	return scheduler.RequestQueue.Empty()
 }

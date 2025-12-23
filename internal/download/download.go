@@ -21,12 +21,12 @@ func (d *Download) Fetch(request *httpc.Request) *httpc.Response {
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	_, err = io.ReadAll(resp.Body)
 	if err != nil {
 		fmt.Println("读取响应失败:", err)
 		return nil
 	}
-	fmt.Println(string(body))
+	fmt.Println("获取成功 " + request.URL)
 
 	return nil
 }
