@@ -6,7 +6,7 @@ type Callback func(*Response) []*Request
 
 type ParseResult struct {
 	Requests []*Request
-	Items    []item.Item
+	Items    []item.StrictItem
 }
 type ParseFunc func(*Response) *ParseResult
 

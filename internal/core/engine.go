@@ -6,19 +6,20 @@ import (
 	"github.com/djskncxm/NewDuckSpider/internal/download"
 	"github.com/djskncxm/NewDuckSpider/internal/setting"
 	"github.com/djskncxm/NewDuckSpider/pkg/httpc"
-	"github.com/djskncxm/NewDuckSpider/pkg/item"
+	// "github.com/djskncxm/NewDuckSpider/pkg/item"
 	"github.com/djskncxm/NewDuckSpider/pkg/spider"
 )
 
 type Engine struct {
-	spider    []spider.Spider
+	spider    spider.Spider
 	download  download.Download
 	scheduler *Scheduler
 	Config    *setting.SettingsManager
 }
 
-func InitEngine(Config *setting.SettingsManager) Engine {
+func InitEngine(spider spider.Spider, Config *setting.SettingsManager) Engine {
 	return Engine{
+		spider:    spider,
 		download:  download.InitDownload(),
 		scheduler: NewScheduler(),
 		Config:    Config,
@@ -31,10 +32,8 @@ func (e *Engine) StartSpider() {
 	if concurrency == 3 {
 	}
 
-	for _, sp := range e.spider {
-		for _, req := range sp.Start() {
-			e.EnRequest(req)
-		}
+	for _, req := range e.spider.Start() {
+		e.EnRequest(req)
 	}
 
 	var wg sync.WaitGroup
@@ -68,13 +67,8 @@ func (e *Engine) worker() {
 			e.EnRequest(req)
 		}
 
-		for _, it := range ParseResult_.Items {
-			e.EnItem(it)
-		}
+		// for _, it := range ParseResult_.Items { e.EnItem(it) }
 	}
-}
-
-func (e *Engine) EnItem(it item.Item) {
 }
 
 func (e *Engine) fetch(request *httpc.Request) *httpc.Response {
@@ -91,8 +85,4 @@ func (e *Engine) GetRequest() *httpc.Request {
 		return req
 	}
 	return nil
-}
-
-func (e *Engine) AddSpider(s spider.Spider) {
-	e.spider = append(e.spider, s)
 }
