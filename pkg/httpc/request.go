@@ -2,8 +2,6 @@ package httpc
 
 import "github.com/djskncxm/NewDuckSpider/pkg/item"
 
-type Callback func(*Response) []*Request
-
 type ParseResult struct {
 	Requests []*Request
 	Items    []item.StrictItem
@@ -46,11 +44,6 @@ func (r *Request) WithBody(body []byte) *Request {
 	r.Body = body
 	return r
 }
-
-//	func (r *Request) WithCallback(cb func(*Response)) *Request {
-//		r.Callback = cb
-//		return r
-//	}
 
 func (r *Request) WithCallback(cb ParseFunc) *Request {
 	r.Callback = cb

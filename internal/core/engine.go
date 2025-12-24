@@ -56,13 +56,11 @@ func (e *Engine) worker() {
 
 		resp := e.fetch(req)
 
-		var callback func(selection *httpc.Response) *httpc.ParseResult
 		if req.Callback == nil {
 			panic("Request without callback")
 		}
-		callback = req.Callback
 
-		ParseResult_ := callback(resp)
+		ParseResult_ := req.Callback(resp)
 		for _, req := range ParseResult_.Requests {
 			e.EnRequest(req)
 		}

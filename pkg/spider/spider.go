@@ -19,6 +19,7 @@ type Spider struct {
 func (s Spider) Name() string {
 	return s.SpiderName
 }
+
 func (s Spider) Start() []*httpc.Request {
 	res := make([]*httpc.Request, 0)
 
