@@ -6,6 +6,7 @@ import (
 
 	"github.com/djskncxm/NewDuckSpider/internal/core"
 	"github.com/djskncxm/NewDuckSpider/internal/setting"
+	"github.com/djskncxm/NewDuckSpider/pkg/logger"
 	"github.com/djskncxm/NewDuckSpider/pkg/spider"
 	"github.com/emirpasic/gods/sets/treeset"
 	"gopkg.in/yaml.v3"
@@ -77,7 +78,34 @@ func (cm *CrawlerManager) RegisterSpider(sp spider.Spider) {
 	// 注册
 	cm.nameSet.Add(name)
 	cm.crawlers[name] = crawler
-	engine := core.InitEngine(sp, cm.config)
+
+	loglevel, ok := cm.config.GetString("Spider.LOGLEVEL")
+	if !ok {
+		loglevel = "debug"
+	}
+	LogFormat, ok := cm.config.GetString("Log.LogFormat")
+	if !ok {
+		LogFormat = "text"
+	}
+	EnableConsole := cm.config.GetBool("Log.EnableConsole", true)
+	ConsoleColor := cm.config.GetBool("Log.ConsoleColor", true)
+	EnableFile := cm.config.GetBool("Log.EnableFile", true)
+
+	config := logger.LogConfig{
+		AppName:       sp.Name(),
+		LogLevel:      loglevel,
+		LogFormat:     LogFormat,
+		EnableConsole: EnableConsole,
+		ConsoleColor:  ConsoleColor,
+		EnableFile:    EnableFile,
+		EnableStats:   true,
+		MaxSize:       100, // MB
+		MaxBackups:    10,
+		MaxAge:        30, // days
+		Compress:      true,
+	}
+	fmt.Println(config)
+	engine := core.InitEngine(sp, cm.config, config)
 	cm.crawlers[name].engine = &engine
 }
 
@@ -102,9 +130,9 @@ func (cm *CrawlerManager) StartAll() {
 			defer wg.Done()
 			fmt.Printf("启动爬虫: %s\n", n)
 			c.engine.StartSpider()
+			c.engine.Logger.PrintStats()
 		}(crawler, name)
 	}
-
 	wg.Wait()
 }
 

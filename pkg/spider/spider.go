@@ -2,6 +2,7 @@ package spider
 
 import (
 	"github.com/djskncxm/NewDuckSpider/pkg/httpc"
+	"github.com/djskncxm/NewDuckSpider/pkg/logger"
 )
 
 type SpiderIns interface {
@@ -14,6 +15,7 @@ type Spider struct {
 	URL        string
 	URLs       []string
 	Callback   func(*httpc.Response) *httpc.ParseResult // Request | Iiem 使用chan进行动态流处理item
+	Logger     *logger.Logger
 }
 
 func (s Spider) Name() string {

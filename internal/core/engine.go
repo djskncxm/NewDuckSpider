@@ -1,33 +1,48 @@
 package core
 
 import (
+	"fmt"
 	"sync"
 
 	"github.com/djskncxm/NewDuckSpider/internal/download"
 	"github.com/djskncxm/NewDuckSpider/internal/setting"
 	"github.com/djskncxm/NewDuckSpider/pkg/httpc"
-	// "github.com/djskncxm/NewDuckSpider/pkg/item"
+	"github.com/djskncxm/NewDuckSpider/pkg/item"
+	"github.com/djskncxm/NewDuckSpider/pkg/logger"
 	"github.com/djskncxm/NewDuckSpider/pkg/spider"
 )
 
 type Engine struct {
-	spider    spider.Spider
-	download  download.Download
-	scheduler *Scheduler
-	Config    *setting.SettingsManager
+	spider       spider.Spider
+	download     download.Download
+	scheduler    *Scheduler
+	Config       *setting.SettingsManager
+	ItemPipeline *item.ItemPipeline
+	Logger       *logger.Logger
 }
 
-func InitEngine(spider spider.Spider, Config *setting.SettingsManager) Engine {
+func InitEngine(spider spider.Spider, Config *setting.SettingsManager, LogConfig logger.LogConfig) Engine {
+	logger, err := logger.NewLogger(&LogConfig)
+	if err != nil {
+		panic(fmt.Errorf("日志系统初始化错误: %w", err))
+	}
+
+	spider.Logger = logger
+
 	return Engine{
-		spider:    spider,
-		download:  download.InitDownload(),
-		scheduler: NewScheduler(),
-		Config:    Config,
+		spider:       spider,
+		download:     download.InitDownload(),
+		scheduler:    NewScheduler(),
+		Config:       Config,
+		ItemPipeline: item.NewItemPipeline(),
+		Logger:       logger,
 	}
 }
 
 func (e *Engine) StartSpider() {
+	e.Logger.Debug("框架启动")
 	var concurrency int = e.Config.GetInt("Spider.Worker", 3)
+	e.Logger.Info(concurrency)
 
 	if concurrency == 3 {
 	}
@@ -45,6 +60,7 @@ func (e *Engine) StartSpider() {
 		}()
 	}
 	wg.Wait()
+	e.Logger.Debug("框架关闭")
 }
 
 func (e *Engine) worker() {
@@ -65,8 +81,14 @@ func (e *Engine) worker() {
 			e.EnRequest(req)
 		}
 
-		// for _, it := range ParseResult_.Items { e.EnItem(it) }
+		for _, it := range ParseResult_.Items {
+			e.EnItem(&it)
+		}
 	}
+}
+
+func (e *Engine) EnItem(item *item.StrictItem) {
+	e.ItemPipeline.EnqueueItem(item)
 }
 
 func (e *Engine) fetch(request *httpc.Request) *httpc.Response {

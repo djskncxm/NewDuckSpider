@@ -20,7 +20,10 @@ type Setting struct {
 		UserAgent string `yaml:"UserAgent"`
 	} `yaml:"Headers"`
 	Log struct {
-		LogFile string `yaml:"LogFile"`
+		LogFormat     string `yaml:"LogFormat"`
+		EnableConsole bool   `yaml:"EnableConsole"`
+		ConsoleColor  bool   `yaml:"ConsoleColor"`
+		EnableFile    bool   `yaml:"EnableFile"`
 	} `yaml:"Log"`
 }
 
@@ -35,7 +38,7 @@ func NewSettingsManager() *SettingsManager {
 	}
 }
 
-func (sm *SettingsManager) GetSetting(key string) (string, bool) {
+func (sm *SettingsManager) GetString(key string) (string, bool) {
 	sm.mu.RLock()
 	defer sm.mu.RUnlock()
 	val, ok := sm.Settings[key]
@@ -49,7 +52,7 @@ func (sm *SettingsManager) SetSetting(key, value string) {
 }
 
 func (sm *SettingsManager) GetInt(key string, defaultVal int) int {
-	val, ok := sm.GetSetting(key)
+	val, ok := sm.GetString(key)
 	if !ok {
 		return defaultVal
 	}
@@ -61,7 +64,7 @@ func (sm *SettingsManager) GetInt(key string, defaultVal int) int {
 }
 
 func (sm *SettingsManager) GetBool(key string, defaultVal bool) bool {
-	val, ok := sm.GetSetting(key)
+	val, ok := sm.GetString(key)
 	if !ok {
 		return defaultVal
 	}
