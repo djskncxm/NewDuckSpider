@@ -178,7 +178,6 @@ type Logger struct {
 
 // NewLogger 创建新的日志记录器
 func NewLogger(config *LogConfig) (*Logger, error) {
-	fmt.Println(config)
 	filePath := "./logs/" + config.AppName + "_" + time.Now().Format("2006_01_02_15_04_05")
 	if config == nil {
 		config = &LogConfig{

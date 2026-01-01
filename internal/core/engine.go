@@ -9,17 +9,19 @@ import (
 	"github.com/djskncxm/NewDuckSpider/pkg/httpc"
 	"github.com/djskncxm/NewDuckSpider/pkg/item"
 	"github.com/djskncxm/NewDuckSpider/pkg/logger"
+	"github.com/djskncxm/NewDuckSpider/pkg/middleware"
 	"github.com/djskncxm/NewDuckSpider/pkg/spider"
 )
 
 type Engine struct {
-	spider       spider.Spider
-	download     download.Download
-	scheduler    *Scheduler
-	Config       *setting.SettingsManager
-	ItemPipeline *item.ItemPipeline
-	Logger       *logger.Logger
-	mu           sync.Mutex
+	spider            spider.Spider
+	download          download.Download
+	scheduler         *Scheduler
+	Config            *setting.SettingsManager
+	ItemPipeline      *item.ItemPipeline
+	Logger            *logger.Logger
+	MiddlewareManager *middleware.MiddlewareManager
+	mu                sync.Mutex
 }
 
 func InitEngine(spider spider.Spider, Config *setting.SettingsManager, LogConfig logger.LogConfig, PipelineConfig item.PipelineConfig) Engine {
@@ -28,15 +30,18 @@ func InitEngine(spider spider.Spider, Config *setting.SettingsManager, LogConfig
 		panic(fmt.Errorf("日志系统初始化错误: %w", err))
 	}
 
+	mi := middleware.NewMiddlewareManager()
+
 	spider.Logger = logger
 
 	return Engine{
-		spider:       spider,
-		download:     download.InitDownload(),
-		scheduler:    NewScheduler(),
-		Config:       Config,
-		ItemPipeline: item.NewItemPipeline(PipelineConfig),
-		Logger:       logger,
+		spider:            spider,
+		download:          download.InitDownload(logger, mi),
+		scheduler:         NewScheduler(),
+		Config:            Config,
+		ItemPipeline:      item.NewItemPipeline(PipelineConfig),
+		Logger:            logger,
+		MiddlewareManager: mi,
 	}
 }
 

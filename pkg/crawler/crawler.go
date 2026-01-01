@@ -4,15 +4,17 @@ import (
 	"fmt"
 	"sync"
 
+	"os"
+	"time"
+
 	"github.com/djskncxm/NewDuckSpider/internal/core"
 	"github.com/djskncxm/NewDuckSpider/internal/setting"
 	"github.com/djskncxm/NewDuckSpider/pkg/item"
 	"github.com/djskncxm/NewDuckSpider/pkg/logger"
+	"github.com/djskncxm/NewDuckSpider/pkg/middleware"
 	"github.com/djskncxm/NewDuckSpider/pkg/spider"
 	"github.com/emirpasic/gods/sets/treeset"
 	"gopkg.in/yaml.v3"
-	"os"
-	"time"
 )
 
 type CrawlerManager struct {
@@ -122,6 +124,10 @@ func (cm *CrawlerManager) SetPipelineCallback(spider spider.Spider, callback *it
 	cm.crawlers[spider.Name()].engine.ItemPipeline.SetCallbacks(*callback)
 }
 
+func (cm *CrawlerManager) AddMiddleware(spider spider.Spider, Middleware interface{}, config ...middleware.MiddlewareConfig) {
+	cm.crawlers[spider.Name()].engine.MiddlewareManager.Register(Middleware, config...)
+}
+
 // StartAll 启动所有爬虫（并发执行）
 func (cm *CrawlerManager) StartAll() {
 	var wg sync.WaitGroup
@@ -141,7 +147,6 @@ func (cm *CrawlerManager) StartAll() {
 		wg.Add(1)
 		go func(c *Crawler, n string) {
 			defer wg.Done()
-			fmt.Printf("启动爬虫: %s\n", n)
 			c.engine.StartSpider()
 			c.engine.Logger.PrintStats()
 		}(crawler, name)
