@@ -6,11 +6,13 @@ import (
 
 	"github.com/djskncxm/NewDuckSpider/internal/core"
 	"github.com/djskncxm/NewDuckSpider/internal/setting"
+	"github.com/djskncxm/NewDuckSpider/pkg/item"
 	"github.com/djskncxm/NewDuckSpider/pkg/logger"
 	"github.com/djskncxm/NewDuckSpider/pkg/spider"
 	"github.com/emirpasic/gods/sets/treeset"
 	"gopkg.in/yaml.v3"
 	"os"
+	"time"
 )
 
 type CrawlerManager struct {
@@ -104,9 +106,20 @@ func (cm *CrawlerManager) RegisterSpider(sp spider.Spider) {
 		MaxAge:        30, // days
 		Compress:      true,
 	}
-	fmt.Println(config)
-	engine := core.InitEngine(sp, cm.config, config)
+
+	MaxSize := cm.config.GetInt("Pipeline.MaxSize", 1000)
+	AutoFlushSize := cm.config.GetInt("Pipeline.AutoFlushSize", 100)
+	PipelineConfig := item.PipelineConfig{
+		MaxSize:       MaxSize,
+		MaxWaitTime:   5 * time.Second,
+		AutoFlushSize: AutoFlushSize,
+	}
+	engine := core.InitEngine(sp, cm.config, config, PipelineConfig)
 	cm.crawlers[name].engine = &engine
+}
+
+func (cm *CrawlerManager) SetPipelineCallback(spider spider.Spider, callback *item.PipelineCallback) {
+	cm.crawlers[spider.Name()].engine.ItemPipeline.SetCallbacks(*callback)
 }
 
 // StartAll 启动所有爬虫（并发执行）

@@ -4,7 +4,7 @@ import "github.com/djskncxm/NewDuckSpider/pkg/item"
 
 type ParseResult struct {
 	Requests []*Request
-	Items    []item.StrictItem
+	Items    []*item.StrictItem
 }
 type ParseFunc func(*Response) *ParseResult
 

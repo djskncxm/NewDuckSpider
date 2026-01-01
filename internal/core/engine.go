@@ -19,9 +19,10 @@ type Engine struct {
 	Config       *setting.SettingsManager
 	ItemPipeline *item.ItemPipeline
 	Logger       *logger.Logger
+	mu           sync.Mutex
 }
 
-func InitEngine(spider spider.Spider, Config *setting.SettingsManager, LogConfig logger.LogConfig) Engine {
+func InitEngine(spider spider.Spider, Config *setting.SettingsManager, LogConfig logger.LogConfig, PipelineConfig item.PipelineConfig) Engine {
 	logger, err := logger.NewLogger(&LogConfig)
 	if err != nil {
 		panic(fmt.Errorf("日志系统初始化错误: %w", err))
@@ -34,7 +35,7 @@ func InitEngine(spider spider.Spider, Config *setting.SettingsManager, LogConfig
 		download:     download.InitDownload(),
 		scheduler:    NewScheduler(),
 		Config:       Config,
-		ItemPipeline: item.NewItemPipeline(),
+		ItemPipeline: item.NewItemPipeline(PipelineConfig),
 		Logger:       logger,
 	}
 }
@@ -66,8 +67,10 @@ func (e *Engine) StartSpider() {
 func (e *Engine) worker() {
 	for {
 		req := e.GetRequest()
-		if req == nil && e.scheduler.Empty() {
-			return
+		if req == nil {
+			if e.isAllWorkDone() {
+				return
+			}
 		}
 
 		resp := e.fetch(req)
@@ -82,7 +85,12 @@ func (e *Engine) worker() {
 		}
 
 		for _, it := range ParseResult_.Items {
-			e.EnItem(&it)
+			it.Metadata.SpiderName = e.spider.Name()
+			e.EnItem(it)
+		}
+
+		if !e.ItemPipeline.IsEmpty() {
+			e.ItemPipeline.ProcessNext()
 		}
 	}
 }
@@ -105,4 +113,10 @@ func (e *Engine) GetRequest() *httpc.Request {
 		return req
 	}
 	return nil
+}
+
+func (e *Engine) isAllWorkDone() bool {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return e.scheduler.Empty() && e.ItemPipeline.IsEmpty()
 }
