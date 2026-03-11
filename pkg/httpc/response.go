@@ -399,15 +399,15 @@ func (r *Response) Reset() *Response {
 // Clone 克隆响应（用于链式调用的分支）
 func (r *Response) Clone() *Response {
 	return &Response{
-		URL:      r.URL,
-		StatusCode:   r.StatusCode,
-		Headers:  r.Headers,
-		Body:     r.Body,
-		Request:  r.Request,
-		Protocol: r.Protocol,
-		rootNode: r.rootNode,
-		curNodes: r.curNodes,
-		err:      r.err,
-		text:     r.text,
+		URL:        r.URL,
+		StatusCode: r.StatusCode,
+		Headers:    r.Headers,
+		Body:       r.Body,
+		Request:    r.Request,
+		Protocol:   r.Protocol,
+		rootNode:   r.rootNode,
+		curNodes:   r.curNodes,
+		err:        r.err,
+		text:       r.text,
 	}
 }
