@@ -145,9 +145,7 @@ func (s *Stats) OutTableInfo(writer io.Writer) error {
 		switch v := value.(type) {
 		case string:
 			valueStr = v
-		case int, int8, int16, int32, int64,
-			uint, uint8, uint16, uint32, uint64,
-			float32, float64, complex64, complex128:
+		case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64, complex64, complex128:
 			valueStr = fmt.Sprintf("%v", v)
 		case time.Time:
 			valueStr = v.Format("2006-01-02 15:04:05")

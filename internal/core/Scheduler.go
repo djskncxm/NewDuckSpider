@@ -1,82 +1,81 @@
+package core
+
+import (
+	"github.com/djskncxm/NewDuckSpider/pkg/httpc"
+	"github.com/emirpasic/gods/queues/linkedlistqueue"
+	"sync"
+)
+
+type Scheduler struct {
+	RequestQueue *linkedlistqueue.Queue
+	mu           sync.Mutex
+}
+
+func NewScheduler() *Scheduler {
+	return &Scheduler{
+		RequestQueue: linkedlistqueue.New(),
+	}
+}
+
+func (scheduler *Scheduler) NextRequest() *httpc.Request {
+	scheduler.mu.Lock()
+	defer scheduler.mu.Unlock()
+
+	value, ok := scheduler.RequestQueue.Dequeue()
+	if !ok {
+		return nil
+	}
+
+	req, ok := value.(*httpc.Request)
+	if !ok {
+		return nil
+	}
+
+	return req
+}
+
+func (scheduler *Scheduler) EnqueueRequest(request *httpc.Request) {
+	scheduler.mu.Lock()
+	defer scheduler.mu.Unlock()
+	scheduler.RequestQueue.Enqueue(request)
+}
+
+func (scheduler *Scheduler) Empty() bool {
+	return scheduler.RequestQueue.Empty()
+}
+
 // package core
 //
 // import (
 // 	"github.com/djskncxm/NewDuckSpider/pkg/httpc"
-// 	"github.com/emirpasic/gods/queues/linkedlistqueue"
-// 	"sync"
 // )
 //
 // type Scheduler struct {
-// 	RequestQueue *linkedlistqueue.Queue
-// 	mu           sync.Mutex
+// 	RequestChan chan *httpc.Request
 // }
 //
-// func NewScheduler() *Scheduler {
+// // 初始化 scheduler，buffer 可根据需要设置
+// func NewScheduler(buffer int) *Scheduler {
 // 	return &Scheduler{
-// 		RequestQueue: linkedlistqueue.New(),
+// 		RequestChan: make(chan *httpc.Request, buffer),
 // 	}
 // }
 //
-// func (scheduler *Scheduler) NextRequest() (request *httpc.Request) {
-// 	if scheduler.Empty() {
-// 		return nil
-// 	}
+// // 入队请求
+// func (s *Scheduler) EnqueueRequest(req *httpc.Request) {
+// 	s.RequestChan <- req
+// }
 //
-// 	value, ok := scheduler.RequestQueue.Dequeue()
-//
-// 	if !ok {
-// 		return nil
-// 	}
-//
-// 	req, ok := value.(*httpc.Request)
+// // 出队请求，阻塞等待
+// func (s *Scheduler) NextRequest() *httpc.Request {
+// 	req, ok := <-s.RequestChan
 // 	if !ok {
 // 		return nil
 // 	}
 // 	return req
 // }
 //
-// func (scheduler *Scheduler) EnqueueRequest(request *httpc.Request) {
-// 	scheduler.mu.Lock()
-// 	defer scheduler.mu.Unlock()
-// 	scheduler.RequestQueue.Enqueue(request)
+// // 关闭队列（所有请求处理完后关闭）
+// func (s *Scheduler) Close() {
+// 	close(s.RequestChan)
 // }
-//
-// func (scheduler *Scheduler) Empty() bool {
-// 	return scheduler.RequestQueue.Empty()
-// }
-
-package core
-
-import (
-	"github.com/djskncxm/NewDuckSpider/pkg/httpc"
-)
-
-type Scheduler struct {
-	RequestChan chan *httpc.Request
-}
-
-// 初始化 scheduler，buffer 可根据需要设置
-func NewScheduler(buffer int) *Scheduler {
-	return &Scheduler{
-		RequestChan: make(chan *httpc.Request, buffer),
-	}
-}
-
-// 入队请求
-func (s *Scheduler) EnqueueRequest(req *httpc.Request) {
-	s.RequestChan <- req
-}
-
-// 出队请求，阻塞等待
-func (s *Scheduler) NextRequest() *httpc.Request {
-	req, ok := <-s.RequestChan
-	if !ok {
-		return nil
-	}
-	return req
-}
-
-// 关闭队列（所有请求处理完后关闭）
-func (s *Scheduler) Close() {
-	close(s.RequestChan)
-}

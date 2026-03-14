@@ -7,6 +7,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/djskncxm/NewDuckSpider/pkg/logger"
 	"github.com/emirpasic/gods/queues/linkedlistqueue"
 )
 
@@ -237,15 +238,15 @@ func (p *ItemPipeline) ProcessNext() error {
 	for {
 		item, err := p.DequeueItem()
 		if err != nil {
-			return err
+			logger.Error("DequeueItem", err)
 		}
 		if item == nil {
-			return nil
+			continue
 		}
 
-		pi := p.processItem(item)
-		if pi != nil {
-			fmt.Println("processItem")
+		err = p.processItem(item)
+		if err != nil {
+			logger.Error("processItem", err)
 		}
 	}
 }

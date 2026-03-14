@@ -1,11 +1,12 @@
 package download
 
 import (
-	"fmt"
+	// "fmt"
 	"github.com/djskncxm/NewDuckSpider/pkg/httpc"
 	"github.com/djskncxm/NewDuckSpider/pkg/logger"
 	"github.com/djskncxm/NewDuckSpider/pkg/middleware"
 	"github.com/emirpasic/gods/sets/treeset"
+	"time"
 	// "github.com/enetx/surf"
 	"io"
 	"net/http"
@@ -17,6 +18,14 @@ type Download struct {
 	MiddlewareManager *middleware.MiddlewareManager
 	Logger            *logger.Logger
 	mu                sync.Mutex
+}
+
+var client = &http.Client{
+	Transport: &http.Transport{
+		MaxIdleConns:        1000,
+		MaxIdleConnsPerHost: 1000,
+	},
+	Timeout: 15 * time.Second,
 }
 
 func InitDownload(Loggger *logger.Logger, MiddlewareManager *middleware.MiddlewareManager) Download {
@@ -31,9 +40,10 @@ func (d *Download) Fetch(request *httpc.Request) *httpc.Response {
 	// surfClient := surf.NewClient().Builder().Impersonate().Linux().Chrome().Session().Build().Unwrap()
 	// stdClient := surfClient.Std()
 	// resp, err := stdClient.Get(request.URL)
-	resp, err := http.Get(request.URL)
+	resp, err := client.Get(request.URL)
 	if err != nil {
-		fmt.Println("请求失败:", err)
+		// fmt.Println("请求失败:", err)
+		d.MiddlewareManager.ProcessException(err)
 		return nil
 	}
 
@@ -42,7 +52,6 @@ func (d *Download) Fetch(request *httpc.Request) *httpc.Response {
 	body, err := io.ReadAll(resp.Body)
 
 	if err != nil {
-		fmt.Println("读取响应失败:", err)
 		d.MiddlewareManager.ProcessException(err)
 		return nil
 	}
@@ -55,6 +64,7 @@ func (d *Download) Fetch(request *httpc.Request) *httpc.Response {
 		}
 	}
 
+	d.Logger.Stats.AddInt("RequestNum", 1)
 	// 创建并返回 httpc.Response
 	response := httpc.NewResponse(
 		resp.Request.URL.String(), // 使用实际请求的URL（可能会有重定向）
