@@ -234,15 +234,20 @@ func (p *ItemPipeline) dequeueItem(blocking bool) (*StrictItem, error) {
 
 // ProcessNext 处理下一个项目
 func (p *ItemPipeline) ProcessNext() error {
-	item, err := p.DequeueItem()
-	if err != nil {
-		return err
-	}
-	if item == nil {
-		return nil
-	}
+	for {
+		item, err := p.DequeueItem()
+		if err != nil {
+			return err
+		}
+		if item == nil {
+			return nil
+		}
 
-	return p.processItem(item)
+		pi := p.processItem(item)
+		if pi != nil {
+			fmt.Println("processItem")
+		}
+	}
 }
 
 // processItem 处理单个项目

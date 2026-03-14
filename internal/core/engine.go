@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+	"strconv"
 	"sync"
 
 	"github.com/djskncxm/NewDuckSpider/internal/download"
@@ -37,7 +38,7 @@ func InitEngine(spider spider.Spider, Config *setting.SettingsManager, LogConfig
 	return Engine{
 		spider:            spider,
 		download:          download.InitDownload(logger, mi),
-		scheduler:         NewScheduler(),
+		scheduler:         NewScheduler(10),
 		Config:            Config,
 		ItemPipeline:      item.NewItemPipeline(PipelineConfig),
 		Logger:            logger,
@@ -48,10 +49,12 @@ func InitEngine(spider spider.Spider, Config *setting.SettingsManager, LogConfig
 func (e *Engine) StartSpider() {
 	e.Logger.Debug("框架启动")
 	var concurrency int = e.Config.GetInt("Spider.Worker", 3)
-	e.Logger.Info(concurrency)
+	e.Logger.Info("并发数 -> " + strconv.Itoa(concurrency))
 
 	if concurrency == 3 {
 	}
+
+	go e.ItemPipeline.ProcessNext()
 
 	for _, req := range e.spider.Start() {
 		e.EnRequest(req)
@@ -70,34 +73,63 @@ func (e *Engine) StartSpider() {
 }
 
 func (e *Engine) worker() {
-	for {
-		req := e.GetRequest()
-		if req == nil {
-			if e.isAllWorkDone() {
-				return
-			}
+	for req := range e.scheduler.RequestChan { // 阻塞等待请求
+
+		if req.Callback == nil {
+			e.Logger.Warn("Request without callback SpiderName -> ", e.spider.Name())
+			continue
 		}
 
 		resp := e.fetch(req)
+		parseResult := req.Callback(resp)
 
-		if req.Callback == nil {
-			panic("Request without callback")
+		if parseResult == nil {
+			continue
 		}
 
-		ParseResult_ := req.Callback(resp)
-		for _, req := range ParseResult_.Requests {
-			e.EnRequest(req)
+		// 统一 enqueue 请求和 item
+		for _, newReq := range parseResult.Requests {
+			fmt.Println("EnRequest")
+			e.EnRequest(newReq)
 		}
-
-		for _, it := range ParseResult_.Items {
+		for _, it := range parseResult.Items {
 			it.Metadata.SpiderName = e.spider.Name()
+			fmt.Println("EnItem")
 			e.EnItem(it)
 		}
-
-		if !e.ItemPipeline.IsEmpty() {
-			e.ItemPipeline.ProcessNext()
-		}
 	}
+
+	// for {
+	// 	req := e.GetRequest()
+	// 	if req == nil {
+	// 		if e.isAllWorkDone() {
+	// 			return
+	// 		}
+	// 	}
+	//
+	// 	resp := e.fetch(req)
+	//
+	// 	var parseResult *httpc.ParseResult
+	//
+	// 	if req.Callback != nil {
+	// 		parseResult = req.Callback(resp) // 注意不要加 :=
+	// 	} else {
+	// 		e.Logger.Warn("Request without callback SpiderName -> ", e.spider.Name())
+	// 		return
+	// 	}
+	//
+	// 	if parseResult != nil {
+	// 		for _, newReq := range parseResult.Requests {
+	// 			e.EnRequest(newReq)
+	// 		}
+	// 		for _, it := range parseResult.Items {
+	// 			it.Metadata.SpiderName = e.spider.Name()
+	// 			e.EnItem(it)
+	// 		}
+	// 	}
+	//
+	// 	// if !e.ItemPipeline.IsEmpty() { e.ItemPipeline.ProcessNext() }
+	// }
 }
 
 func (e *Engine) EnItem(item *item.StrictItem) {
@@ -123,5 +155,6 @@ func (e *Engine) GetRequest() *httpc.Request {
 func (e *Engine) isAllWorkDone() bool {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	return e.scheduler.Empty() && e.ItemPipeline.IsEmpty()
+	return true
+	// return e.scheduler.Empty() && e.ItemPipeline.IsEmpty()
 }
