@@ -1,81 +1,45 @@
 package core
 
-import (
-	"github.com/djskncxm/NewDuckSpider/pkg/httpc"
-	"github.com/emirpasic/gods/queues/linkedlistqueue"
-	"sync"
-)
+import "github.com/djskncxm/NewDuckSpider/pkg/httpc"
 
 type Scheduler struct {
-	RequestQueue *linkedlistqueue.Queue
-	mu           sync.Mutex
+	queue chan *httpc.Request
 }
 
-func NewScheduler() *Scheduler {
+// NewScheduler 创建指定缓冲大小的调度器
+func NewScheduler(bufferSize int) *Scheduler {
 	return &Scheduler{
-		RequestQueue: linkedlistqueue.New(),
+		queue: make(chan *httpc.Request, bufferSize),
 	}
 }
 
-func (scheduler *Scheduler) NextRequest() *httpc.Request {
-	scheduler.mu.Lock()
-	defer scheduler.mu.Unlock()
-
-	value, ok := scheduler.RequestQueue.Dequeue()
-	if !ok {
+// NextRequest 非阻塞获取请求
+func (s *Scheduler) NextRequest() *httpc.Request {
+	select {
+	case req := <-s.queue:
+		return req
+	default:
 		return nil
 	}
-
-	req, ok := value.(*httpc.Request)
-	if !ok {
-		return nil
-	}
-
-	return req
 }
 
-func (scheduler *Scheduler) EnqueueRequest(request *httpc.Request) {
-	scheduler.mu.Lock()
-	defer scheduler.mu.Unlock()
-	scheduler.RequestQueue.Enqueue(request)
+// EnqueueRequest 入队请求（可能阻塞直到有空闲缓冲）
+func (s *Scheduler) EnqueueRequest(req *httpc.Request) {
+	s.queue <- req
 }
 
-func (scheduler *Scheduler) Empty() bool {
-	return scheduler.RequestQueue.Empty()
+// Empty 判断队列是否为空（快照，非精确）
+func (s *Scheduler) Empty() bool {
+	return len(s.queue) == 0
 }
 
-// package core
-//
-// import (
-// 	"github.com/djskncxm/NewDuckSpider/pkg/httpc"
-// )
-//
-// type Scheduler struct {
-// 	RequestChan chan *httpc.Request
-// }
-//
-// // 初始化 scheduler，buffer 可根据需要设置
-// func NewScheduler(buffer int) *Scheduler {
-// 	return &Scheduler{
-// 		RequestChan: make(chan *httpc.Request, buffer),
-// 	}
-// }
-//
-// // 入队请求
-// func (s *Scheduler) EnqueueRequest(req *httpc.Request) {
-// 	s.RequestChan <- req
-// }
-//
-// // 出队请求，阻塞等待
-// func (s *Scheduler) NextRequest() *httpc.Request {
-// 	req, ok := <-s.RequestChan
-// 	if !ok {
-// 		return nil
-// 	}
-// 	return req
-// }
-//
-// // 关闭队列（所有请求处理完后关闭）
-// func (s *Scheduler) Close() {
-// 	close(s.RequestChan)
-// }
+// NextRequestBlocking 阻塞获取请求，直到有请求或者队列关闭
+func (s *Scheduler) NextRequestBlocking() (*httpc.Request, bool) {
+	req, ok := <-s.queue
+	return req, ok
+}
+
+// CloseScheduler 关闭队列，通知 worker 可以退出
+func (s *Scheduler) CloseScheduler() {
+	close(s.queue)
+}

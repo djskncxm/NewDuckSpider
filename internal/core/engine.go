@@ -39,9 +39,9 @@ func InitEngine(spider spider.Spider, Config *setting.SettingsManager, LogConfig
 	return Engine{
 		spider:            spider,
 		download:          download.InitDownload(logger, mi),
-		scheduler:         NewScheduler(),
+		scheduler:         NewScheduler(1000),
 		Config:            Config,
-		ItemPipeline:      item.NewItemPipeline(PipelineConfig,logger),
+		ItemPipeline:      item.NewItemPipeline(PipelineConfig, logger),
 		Logger:            logger,
 		MiddlewareManager: mi,
 	}
@@ -50,7 +50,7 @@ func InitEngine(spider spider.Spider, Config *setting.SettingsManager, LogConfig
 func (e *Engine) StartSpider() {
 	e.Logger.Debug("框架启动")
 	var concurrency int = e.Config.GetInt("Spider.Worker", 3)
-	e.Logger.Info("并发数 -> " + strconv.Itoa(concurrency))
+	e.Logger.Debug("并发数 -> " + strconv.Itoa(concurrency))
 
 	if concurrency == 3 {
 	}
@@ -70,47 +70,50 @@ func (e *Engine) StartSpider() {
 		}()
 	}
 	wg.Wait()
+	e.ItemPipeline.Close()
+	e.scheduler.CloseScheduler()
 	e.Logger.Debug("框架关闭")
 }
-
 func (e *Engine) worker() {
+	for {
+		req, ok := e.scheduler.NextRequestBlocking()
+		if !ok {
+			// 队列已经关闭且没有请求，worker 退出
+			return
+		}
 
-	// for req := range e.scheduler.RequestChan { // 阻塞等待请求
-	//
-	// 	if req.Callback == nil {
-	// 		e.Logger.Warn("Request without callback SpiderName -> ", e.spider.Name())
-	// 		continue
-	// 	}
-	//
-	// 	resp := e.fetch(req)
-	// 	parseResult := req.Callback(resp)
-	//
-	// 	if parseResult == nil {
-	// 		continue
-	// 	}
-	//
-	// 	// 统一 enqueue 请求和 item
-	// 	for _, newReq := range parseResult.Requests {
-	// 		fmt.Println("EnRequest")
-	// 		e.EnRequest(newReq)
-	// 	}
-	// 	for _, it := range parseResult.Items {
-	// 		it.Metadata.SpiderName = e.spider.Name()
-	// 		fmt.Println("EnItem")
-	// 		e.EnItem(it)
-	// 	}
-	// }
+		e.Logger.Stats.AddInt("Request 出队", 1)
 
+		resp := e.fetch(req)
+
+		if req.Callback != nil {
+			parseResult := req.Callback(resp)
+			if parseResult != nil {
+				// 新请求入队
+				for _, newReq := range parseResult.Requests {
+					e.EnRequest(newReq)
+				}
+				// Items 入队
+				for _, it := range parseResult.Items {
+					it.Metadata.SpiderName = e.spider.Name()
+					e.EnItem(it)
+				}
+			}
+		}
+	}
+}
+
+func (e *Engine) worker2() {
 	Num := 0
 	for {
 		req := e.GetRequest()
-		// if req == nil { if e.isAllWorkDone() { return } }
 		if req == nil {
-			if Num > 50 {
+			if Num > 25 {
+				fmt.Println("退出")
 				return
 			}
 			Num++
-			time.Sleep(10 * time.Millisecond)
+			time.Sleep(5 * time.Millisecond)
 			continue
 		}
 
@@ -120,7 +123,7 @@ func (e *Engine) worker() {
 		var parseResult *httpc.ParseResult
 
 		if req.Callback != nil {
-			parseResult = req.Callback(resp) // 注意不要加 :=
+			parseResult = req.Callback(resp)
 		} else {
 			e.Logger.Warn("Request without callback SpiderName -> ", e.spider.Name())
 			// return

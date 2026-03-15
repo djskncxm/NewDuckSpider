@@ -40,9 +40,18 @@ func (d *Download) Fetch(request *httpc.Request) *httpc.Response {
 	// surfClient := surf.NewClient().Builder().Impersonate().Linux().Chrome().Session().Build().Unwrap()
 	// stdClient := surfClient.Std()
 	// resp, err := stdClient.Get(request.URL)
-	resp, err := client.Get(request.URL)
+	// resp, err := client.Get(request.URL)
+
+	req, err := http.NewRequest(request.Method, request.URL, nil)
 	if err != nil {
-		// fmt.Println("请求失败:", err)
+		panic(err)
+	}
+	for k, v := range request.Headers {
+		req.Header.Set(k, v)
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
 		d.Logger.Stats.AddInt("Request 请求失败", 1)
 		d.MiddlewareManager.ProcessException(err)
 		return nil

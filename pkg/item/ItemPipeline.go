@@ -149,6 +149,7 @@ func (p *ItemPipeline) enqueueItem(item *StrictItem, blocking bool) error {
 	// 执行过滤
 	for _, filter := range p.filters {
 		if !filter(item) {
+		p.Logger.Stats.AddInt("ItemFilter", 1)
 			return nil // 被过滤，不报错
 		}
 	}
@@ -245,7 +246,6 @@ func (p *ItemPipeline) ProcessNext() error {
 		if item == nil {
 			continue
 		}
-		p.Logger.Stats.AddInt("Item 出队", 1)
 
 		err = p.processItem(item)
 		if err != nil {
@@ -291,6 +291,7 @@ func (p *ItemPipeline) processItem(item *StrictItem) error {
 
 	// 触发回调
 	if p.callbacks.OnItemProcessed != nil {
+		p.Logger.Stats.AddInt("Item 出队", 1)
 		p.callbacks.OnItemProcessed(item, processErr)
 	}
 
