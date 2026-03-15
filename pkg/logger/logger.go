@@ -128,8 +128,8 @@ func (s *Stats) GetUptime() time.Duration {
 
 // OutTableInfo 以表格形式输出统计信息
 func (s *Stats) OutTableInfo(writer io.Writer) error {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+	// s.mu.RLock()
+	// defer s.mu.RUnlock()
 
 	table := tablewriter.NewWriter(writer)
 	table.Header([]string{"统计项目", "信息"})

@@ -147,13 +147,13 @@ func (cm *CrawlerManager) StartAll() {
 		wg.Add(1)
 		go func(c *Crawler, n string) {
 			defer wg.Done()
-			// go func() {
-			// 	ticker := time.NewTicker(5 * time.Second)
-			// 	defer ticker.Stop()
-			// 	for range ticker.C {
-			// 		c.engine.Logger.PrintStats()
-			// 	}
-			// }()
+			go func() {
+				ticker := time.NewTicker(3 * time.Second)
+				defer ticker.Stop()
+				for range ticker.C {
+					c.engine.Logger.PrintStats()
+				}
+			}()
 			c.engine.StartSpider()
 			c.engine.Logger.PrintStats()
 		}(crawler, name)

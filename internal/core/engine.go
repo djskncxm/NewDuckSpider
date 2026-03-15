@@ -41,7 +41,7 @@ func InitEngine(spider spider.Spider, Config *setting.SettingsManager, LogConfig
 		download:          download.InitDownload(logger, mi),
 		scheduler:         NewScheduler(),
 		Config:            Config,
-		ItemPipeline:      item.NewItemPipeline(PipelineConfig),
+		ItemPipeline:      item.NewItemPipeline(PipelineConfig,logger),
 		Logger:            logger,
 		MiddlewareManager: mi,
 	}
@@ -114,8 +114,7 @@ func (e *Engine) worker() {
 			continue
 		}
 
-		e.Logger.Stats.AddInt("RequestOut", 1)
-		fmt.Println(e.Logger.Stats.Get("RequestNum"))
+		e.Logger.Stats.AddInt("Request 出队", 1)
 		resp := e.fetch(req)
 
 		var parseResult *httpc.ParseResult
@@ -141,6 +140,7 @@ func (e *Engine) worker() {
 }
 
 func (e *Engine) EnItem(item *item.StrictItem) {
+	e.Logger.Stats.AddInt("Item 入队", 1)
 	e.ItemPipeline.EnqueueItem(item)
 }
 
@@ -149,7 +149,7 @@ func (e *Engine) fetch(request *httpc.Request) *httpc.Response {
 }
 
 func (e *Engine) EnRequest(request *httpc.Request) {
-	e.Logger.Stats.AddInt("EnRequest", 1)
+	e.Logger.Stats.AddInt("Request 入队", 1)
 	e.scheduler.EnqueueRequest(request)
 }
 

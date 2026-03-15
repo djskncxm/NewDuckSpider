@@ -62,10 +62,11 @@ type ItemPipeline struct {
 	filters    []func(*StrictItem) bool  // 过滤器
 	batchQueue *linkedlistqueue.Queue    // 批处理队列
 	batchSize  int
+	*logger.Logger
 }
 
 // NewItemPipeline 创建新的项目管道
-func NewItemPipeline(config PipelineConfig) *ItemPipeline {
+func NewItemPipeline(config PipelineConfig, logger *logger.Logger) *ItemPipeline {
 	if config.MaxSize < 0 {
 		config.MaxSize = 0
 	}
@@ -83,6 +84,7 @@ func NewItemPipeline(config PipelineConfig) *ItemPipeline {
 		filters:    make([]func(*StrictItem) bool, 0),
 		batchQueue: linkedlistqueue.New(),
 		batchSize:  0,
+		Logger:     logger,
 	}
 	p.cond = sync.NewCond(&p.mu)
 
@@ -243,6 +245,7 @@ func (p *ItemPipeline) ProcessNext() error {
 		if item == nil {
 			continue
 		}
+		p.Logger.Stats.AddInt("Item 出队", 1)
 
 		err = p.processItem(item)
 		if err != nil {

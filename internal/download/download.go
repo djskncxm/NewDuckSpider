@@ -43,15 +43,16 @@ func (d *Download) Fetch(request *httpc.Request) *httpc.Response {
 	resp, err := client.Get(request.URL)
 	if err != nil {
 		// fmt.Println("请求失败:", err)
+		d.Logger.Stats.AddInt("Request 请求失败", 1)
 		d.MiddlewareManager.ProcessException(err)
 		return nil
 	}
 
 	defer resp.Body.Close()
-
 	body, err := io.ReadAll(resp.Body)
 
 	if err != nil {
+		d.Logger.Stats.AddInt("Request Body 解析失败", 1)
 		d.MiddlewareManager.ProcessException(err)
 		return nil
 	}
@@ -64,8 +65,7 @@ func (d *Download) Fetch(request *httpc.Request) *httpc.Response {
 		}
 	}
 
-	d.Logger.Stats.AddInt("RequestNum", 1)
-	// 创建并返回 httpc.Response
+	d.Logger.Stats.AddInt("Request 下载完成", 1)
 	response := httpc.NewResponse(
 		resp.Request.URL.String(), // 使用实际请求的URL（可能会有重定向）
 		resp.StatusCode,
