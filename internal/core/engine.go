@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strconv"
 	"sync"
-	"time"
 
 	"github.com/djskncxm/NewDuckSpider/internal/download"
 	"github.com/djskncxm/NewDuckSpider/internal/setting"
@@ -78,8 +77,11 @@ func (e *Engine) worker() {
 	for {
 		req, ok := e.scheduler.NextRequestBlocking()
 		if !ok {
-			// 队列已经关闭且没有请求，worker 退出
-			return
+			// 这个地方是永远走不到了，TM得我忘记了channel是阻塞的
+			if e.isAllWorkDone() {
+				return
+			}
+			continue
 		}
 
 		e.Logger.Stats.AddInt("Request 出队", 1)
@@ -100,45 +102,6 @@ func (e *Engine) worker() {
 				}
 			}
 		}
-	}
-}
-
-func (e *Engine) worker2() {
-	Num := 0
-	for {
-		req := e.GetRequest()
-		if req == nil {
-			if Num > 25 {
-				fmt.Println("退出")
-				return
-			}
-			Num++
-			time.Sleep(5 * time.Millisecond)
-			continue
-		}
-
-		e.Logger.Stats.AddInt("Request 出队", 1)
-		resp := e.fetch(req)
-
-		var parseResult *httpc.ParseResult
-
-		if req.Callback != nil {
-			parseResult = req.Callback(resp)
-		} else {
-			e.Logger.Warn("Request without callback SpiderName -> ", e.spider.Name())
-			// return
-		}
-
-		if parseResult != nil {
-			for _, newReq := range parseResult.Requests {
-				e.EnRequest(newReq)
-			}
-			for _, it := range parseResult.Items {
-				it.Metadata.SpiderName = e.spider.Name()
-				e.EnItem(it)
-			}
-		}
-		Num = 0
 	}
 }
 
