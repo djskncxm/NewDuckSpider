@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strconv"
 	"sync"
+	"sync/atomic"
+	"time"
 
 	"github.com/djskncxm/NewDuckSpider/internal/download"
 	"github.com/djskncxm/NewDuckSpider/internal/setting"
@@ -22,7 +24,7 @@ type Engine struct {
 	ItemPipeline      *item.ItemPipeline
 	Logger            *logger.Logger
 	MiddlewareManager *middleware.MiddlewareManager
-	mu                sync.Mutex
+	activeReqs        atomic.Int64
 }
 
 func InitEngine(spider spider.Spider, Config *setting.SettingsManager, LogConfig logger.LogConfig, PipelineConfig item.PipelineConfig) Engine {
@@ -51,14 +53,22 @@ func (e *Engine) StartSpider() {
 	var concurrency int = e.Config.GetInt("Spider.Worker", 3)
 	e.Logger.Debug("并发数 -> " + strconv.Itoa(concurrency))
 
-	if concurrency == 3 {
-	}
-
 	go e.ItemPipeline.ProcessNext()
 
 	for _, req := range e.spider.Start() {
 		e.EnRequest(req)
 	}
+
+	// 监控协程：当所有请求处理完毕、队列为空时，关闭 scheduler 通知 worker 退出
+	go func() {
+		for {
+			if e.activeReqs.Load() == 0 && e.scheduler.Empty() {
+				e.scheduler.CloseScheduler()
+				return
+			}
+			time.Sleep(100 * time.Millisecond)
+		}
+	}()
 
 	var wg sync.WaitGroup
 	for i := 0; i < concurrency; i++ {
@@ -70,18 +80,14 @@ func (e *Engine) StartSpider() {
 	}
 	wg.Wait()
 	e.ItemPipeline.Close()
-	e.scheduler.CloseScheduler()
 	e.Logger.Debug("框架关闭")
 }
 func (e *Engine) worker() {
 	for {
 		req, ok := e.scheduler.NextRequestBlocking()
 		if !ok {
-			// 这个地方是永远走不到了，TM得我忘记了channel是阻塞的
-			if e.isAllWorkDone() {
-				return
-			}
-			continue
+			// channel 已关闭，无更多任务，正常退出
+			return
 		}
 
 		e.Logger.Stats.AddInt("Request 出队", 1)
@@ -102,6 +108,8 @@ func (e *Engine) worker() {
 				}
 			}
 		}
+
+		e.activeReqs.Add(-1)
 	}
 }
 
@@ -115,20 +123,7 @@ func (e *Engine) fetch(request *httpc.Request) *httpc.Response {
 }
 
 func (e *Engine) EnRequest(request *httpc.Request) {
+	e.activeReqs.Add(1)
 	e.Logger.Stats.AddInt("Request 入队", 1)
 	e.scheduler.EnqueueRequest(request)
-}
-
-func (e *Engine) GetRequest() *httpc.Request {
-	req := e.scheduler.NextRequest()
-	if req != nil {
-		return req
-	}
-	return nil
-}
-
-func (e *Engine) isAllWorkDone() bool {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	return e.scheduler.Empty() && e.ItemPipeline.IsEmpty()
 }

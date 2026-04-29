@@ -241,6 +241,9 @@ func (p *ItemPipeline) ProcessNext() error {
 	for {
 		item, err := p.DequeueItem()
 		if err != nil {
+			if errors.Is(err, ErrPipelineClosed) {
+				return nil
+			}
 			logger.Error("DequeueItem", err)
 		}
 		if item == nil {
